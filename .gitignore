@@ -4,12 +4,12 @@ out/
 dist/
 .env
 .env.*
-!.env.example
 .DS_Store
 coverage/
 playwright-report/
 test-results/
 .tmp/
+.wrangler/
 *.tsbuildinfo
 
 # Explicit secret and experiment exclusions for the public repository

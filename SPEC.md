@@ -2,14 +2,14 @@
 
 ## 1. Goal
 
-Build a local-first web app named **JevSlop** that accepts a public `note.com` article URL, extracts the visible article body automatically, evaluates writing-quality signals with TypeSafe Jev, and presents a reproducible **AI Slop Score (0–100)** plus the underlying dimensions and uncertainty.
+Build a public web app named **JevSlop** that accepts a public `note.com` article URL, extracts the visible article body automatically, evaluates writing-quality signals with TypeSafe Jev, and presents a reproducible **AI Slop Score (0–100)** plus the underlying dimensions and uncertainty. Users bring their own TypeSafe API key.
 
 The product must never claim to detect whether AI wrote an article. Its claim is narrower: it measures characteristics associated with low-information, generic, repetitive, formulaic writing.
 
 ## 2. Core user flow
 
 1. User pastes a public note article URL.
-2. Server validates the URL and fetches the page; no manual article copy/paste is required.
+2. The same-origin Pages Function validates the URL and fetches the page; no manual article copy/paste is required.
 3. App extracts title, author/date when available, and the visible article body.
 4. Jev evaluates eight atomic dimensions against the article title and body only.
 5. Ordinary application code normalizes the eight results and computes the composite Slop Score.
@@ -128,7 +128,7 @@ The detailed result view should make it possible to inspect why a high or low co
 Primary input is a public `https://note.com/.../n/...` URL. No manual copy/paste should be needed in the normal path.
 
 Requirements:
-- Fetch server-side so browser CORS is irrelevant and the TypeSafe key remains server-only.
+- Fetch in the same-origin Pages Function so browser CORS is irrelevant; the user key is accepted only as a transient request header and is never a server environment secret.
 - Allowlist `note.com` article URLs; reject arbitrary hosts and non-HTTPS URLs.
 - Revalidate the final host after redirects to avoid SSRF through redirects.
 - Add sensible timeout, response-size limit, and clear errors.
@@ -177,9 +177,9 @@ Design and copy references reviewed live on 2026-09-18:
 
 ## 10. Technical direction
 
-Use a simple full-stack TypeScript implementation with one local dev command. Prefer current stable **Next.js App Router** (or an equally simple current full-stack React framework only if there is a concrete compatibility reason), Node.js 20+, and the official `@typesafe-ai/sdk` package.
+Use a simple TypeScript implementation with one local dev command: a Next.js static export plus a Cloudflare Pages Function. Use Node.js 22.12+ for local development and the official `@typesafe-ai/sdk` package inside the Function.
 
-`TYPESAFE_API_KEY` must be read only on the server from environment variables. Never use a public-prefixed environment variable and never send the key to browser code.
+The user supplies the TypeSafe API key in the browser. Keep it in memory and `sessionStorage` by default; use `localStorage` only after explicit opt-in. Send it only in an `Authorization` header to the same-origin Function, never in a URL, response, result, export, log, analytics event, or source. Never provide a shared operator key through Cloudflare variables.
 
 Before coding the Jev integration, inspect the current official TypeSafe docs/SDK and, if useful, install the official TypeSafe Agent Skill project-locally for Codex. Do not copy outdated examples blindly.
 
@@ -208,7 +208,7 @@ Do not build an oversized test suite. Cover the boundaries that could invalidate
 - article extraction from a representative saved HTML fixture
 - deterministic normalization/composite-score math and frozen weights
 - only title/body are in the Jev state; source metadata and experiment labels are absent
-- API key is server-only
+- BYOK key storage and the key-free result/export boundary
 
 Then run typecheck/lint/build and one end-to-end local happy path. If network access and the user's key are available, perform one real Jev smoke evaluation without storing the article body. Otherwise use a faithful mocked response and clearly report that the real API smoke test remains unexecuted.
 
@@ -223,4 +223,6 @@ The task is complete when a user can paste a public note URL, receive a real Jev
 - HTML is limited to 3 MiB, note fetch to 20 seconds, Jev to 60 seconds; article body must contain at least 100 Unicode characters. Redirects are validated before each hop.
 - Official model limits: 64k tokens for the whole request, 32k for state plus the longest question. No assumed character-to-token conversion or silent truncation. The service can reject an oversized article; no partial score is produced. Chunking is not implemented.
 - Comparison history lives only in the current browser tab, without localStorage or a database. JSON/CSV exports are explicit user downloads and exclude article bodies.
-- The server binds to loopback, rejects cross-origin evaluation requests, and reads only `TYPESAFE_API_KEY` server-side. SDK request logging is disabled.
+- The static UI is deployed with Next.js `output: "export"`; Cloudflare Pages serves `out` and the repository `functions/api/evaluate.ts` handles `/api/evaluate`.
+- The Pages Function accepts only same-origin `POST` JSON with a bounded body, validates `note.com` redirects, forwards the user's `Authorization` header only to `https://api.typesafe.ai`, and writes no application logs or persistent data.
+- No Cloudflare environment variable is required. The SDK runs inside the Function with explicit user key, logging off, and automatic retries disabled.

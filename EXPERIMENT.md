@@ -35,6 +35,8 @@ The Jev state must contain exactly `{ title, body }`: the original article title
 
 The app may attach those fields to local result metadata after the response is returned.
 
+The user's API key is transport-only authentication. It is not experiment state and is never included in Jev's request body, result metadata, or exports.
+
 ## Frozen analysis
 
 Use the eight dimensions and weights from `SPEC.md` unchanged for the main reported experiment.

@@ -103,10 +103,11 @@ test('numeric CSV includes probabilities/confidence, protects spreadsheet formul
   assert.ok(!csv.includes('土曜日の朝')); assert.equal(csv.split('\r\n').length, 2);
 });
 
-test('key is confined to the server; no result/body persistence is introduced', () => {
+test('BYOK key stays out of results and the Function has no shared secret or logging path', () => {
   const clientSource = readFileSync(new URL('../app/workspace.tsx', import.meta.url), 'utf8');
-  assert.ok(!clientSource.includes('process.env')); assert.ok(!clientSource.includes('localStorage'));
-  const server = readFileSync(new URL('../app/api/evaluate/route.ts', import.meta.url), 'utf8');
-  assert.ok(server.includes("import 'server-only'")); assert.ok(server.includes("logLevel: 'off'"));
-  assert.ok(!server.includes('...article,'));
+  assert.ok(!clientSource.includes('process.env')); assert.ok(clientSource.includes('sessionStorage')); assert.ok(clientSource.includes('Authorization'));
+  const functionSource = readFileSync(new URL('../functions/api/evaluate.ts', import.meta.url), 'utf8');
+  assert.ok(functionSource.includes("logLevel: 'off'")); assert.ok(functionSource.includes("baseURL: 'https://api.typesafe.ai'"));
+  assert.ok(functionSource.includes("authorization")); assert.ok(!functionSource.includes('process.env')); assert.ok(!functionSource.includes('console.'));
+  assert.ok(!functionSource.includes('...article,'));
 });
