@@ -38,6 +38,7 @@ export type Copy = {
   resultAria: string;
   aiSlop: string;
   notAiSlop: string;
+  overallVerdictNote: string;
   authorshipNote: string;
   detailsOpen: string;
   detailsClosed: string;
@@ -48,8 +49,7 @@ export type Copy = {
   duration: string;
   jevDuration: string;
   evaluatedAt: string;
-  classificationRule: (value: string) => string;
-  nearBoundary: (value: string) => string;
+  classificationRule: string;
   sourceMode: string;
   fullBody: string;
   axesHeading: string;
@@ -61,9 +61,6 @@ export type Copy = {
   distribution: (axis: string) => string;
   probability: string;
   originalScore: string;
-  contribution: string;
-  weight: string;
-  reversed: string;
   label: string;
   labelHint: string;
   labelPlaceholder: string;
@@ -119,7 +116,7 @@ const japanese: Copy = {
   submit: '分析する',
   analyzing: '分析中',
   fetching: '記事を読み込んでいます',
-  evaluating: characters => `${characters}文字を8つの軸で評価しています`,
+  evaluating: characters => `${characters}文字を8つの詳細軸と総合判定で評価しています`,
   inputDescription: '公開されたnote記事のタイトルと本文をTypeSafeへ送信して評価します。有料・会員限定記事には対応していません。',
   cancel: '中止',
   cancelled: '評価を中止しました。送信済みのリクエストはTypeSafe側で処理される場合があります。',
@@ -128,37 +125,34 @@ const japanese: Copy = {
   resultAria: '評価結果',
   aiSlop: 'AI Slop',
   notAiSlop: 'Not AI Slop',
+  overallVerdictNote: 'Jevが文章全体を読んだ総合判定です。8軸の平均ではありません。',
   authorshipNote: 'AIが書いたかどうかを判定するものではありません。',
   detailsOpen: '詳細を閉じる',
   detailsClosed: '詳細を見る',
   detailsHeading: '評価の詳細',
-  score: 'Slop Score',
+  score: '総合AI Slop Score',
   articleLength: '本文',
   characters: count => `${count}文字`,
   duration: '処理時間',
   jevDuration: 'Jev評価',
   evaluatedAt: '評価日時',
-  classificationRule: value => `丸め前のSlop Scoreが50以上で「AI Slop」、50未満で「Not AI Slop」。これは文章の特徴を表示するための仮の基準で、実証済みの判定基準ではありません。${value}`,
-  nearBoundary: value => ` この結果の丸め前の値は${value}です。`,
+  classificationRule: '主判定と総合Scoreは、Jevが文章全体を読んで返した別枠のScore / choiceです。8軸の平均・重み付き合成ではありません。',
   sourceMode: 'タイトル＋本文・全文評価',
   fullBody: '全文評価',
-  axesHeading: '8つの評価軸',
+  axesHeading: '8つの詳細軸',
   score100: 'Score / 100',
   confidence: 'Confidence',
   highQuality: '高いほど良質',
   highSlop: '高いほどSlop',
-  axisFootnote: '軸を選ぶと確率分布を表示します。Confidenceは確率の集中度を表し、正しさを保証しません。',
+  axisFootnote: '軸を選ぶと確率分布を表示します。8軸は詳細指標で、主判定の平均には使いません。Confidenceは確率の集中度を表し、正しさを保証しません。',
   distribution: axis => `${axis}の確率分布`,
   probability: '5段階の確率',
   originalScore: '元のScore',
-  contribution: '総合への寄与',
-  weight: '重み',
-  reversed: '反転',
   label: '比較用ラベル',
   labelHint: '任意・Jevには送信されません',
   labelPlaceholder: '例：比較対象 A',
   methodSummary: '計算式・評価の限界・データの扱い',
-  methodBody: '各Score（0–4）を25倍し、良質さの軸は100から引いて固定重みで合計します。二択ラベルもコードで計算し、JevにAI執筆かどうかを質問しません。',
+  methodBody: '総合AI Slop Scoreと主判定は、Jevに文章全体を読ませた別枠のScore / choiceから返ります。8つのScoreは詳細指標として個別に表示し、平均・重み付き合成から主判定を作りません。',
   methodLimit: '人が書いた文章でも高く、AIを使った文章でも低くなる場合があります。Confidenceは正しさの保証ではありません。',
   methodData: 'Jevにはタイトルと本文だけを渡します。URL・著者・日時・比較ラベルは含めません。翻訳、省略、分割評価は行わず、画像・動画や埋め込み先の内容は評価対象外です。本文はサーバーや外部DBに保存せず、結果はこのタブのメモリだけに保持します。',
   scoreSpecification: 'TypeSafe Score仕様 ↗',
@@ -173,7 +167,7 @@ const japanese: Copy = {
   sortScore: 'Slop Scoreが低い順',
   comparisonAria: '記事比較表（横スクロールできます）',
   articleAndLabel: '記事 / ラベル',
-  classificationAndScore: '区分 / Slop Score',
+  classificationAndScore: '区分 / 総合Score',
   processingTime: '処理時間',
   delete: '削除',
   deleteFromHistory: title => `${title}を削除`,
@@ -241,7 +235,7 @@ const english: Copy = {
   submit: 'Analyze',
   analyzing: 'Analyzing',
   fetching: 'Loading the article',
-  evaluating: characters => `Evaluating ${characters} characters across eight dimensions`,
+  evaluating: characters => `Evaluating ${characters} characters across eight details and one overall judgment`,
   inputDescription: 'The public note article title and body are sent to TypeSafe for evaluation. Paid and members-only articles are not supported.',
   cancel: 'Cancel',
   cancelled: 'Evaluation cancelled. A request already sent may still be processed by TypeSafe.',
@@ -250,37 +244,34 @@ const english: Copy = {
   resultAria: 'Evaluation result',
   aiSlop: 'AI Slop',
   notAiSlop: 'Not AI Slop',
+  overallVerdictNote: 'This is Jev\'s whole-article judgment. It is not an average of the eight dimensions.',
   authorshipNote: 'This does not determine whether AI wrote the article.',
   detailsOpen: 'Hide details',
   detailsClosed: 'Show details',
   detailsHeading: 'Evaluation details',
-  score: 'Slop Score',
+  score: 'Overall AI Slop Score',
   articleLength: 'Body',
   characters: count => `${count} chars`,
   duration: 'Total time',
   jevDuration: 'Jev time',
   evaluatedAt: 'Evaluated',
-  classificationRule: value => `The unrounded Slop Score is labeled “AI Slop” at 50 or above and “Not AI Slop” below 50. This is a provisional display convention for writing characteristics, not a validated classifier.${value}`,
-  nearBoundary: value => ` The unrounded value here is ${value}.`,
+  classificationRule: 'The primary label and overall score come from separate Jev Score and choice questions that read the whole article. They are not derived from an eight-dimension average or weighted sum.',
   sourceMode: 'Title + body · full text',
   fullBody: 'Full text',
-  axesHeading: 'Eight dimensions',
+  axesHeading: 'Eight detail dimensions',
   score100: 'Score / 100',
   confidence: 'Confidence',
   highQuality: 'Higher is better',
   highSlop: 'Higher is more Slop',
-  axisFootnote: 'Select a dimension to inspect its probability distribution. Confidence describes concentration, not correctness.',
+  axisFootnote: 'Select a dimension to inspect its probability distribution. These are detail signals, not an average used for the primary label. Confidence describes concentration, not correctness.',
   distribution: axis => `${axis} probability distribution`,
   probability: 'Probability across five levels',
   originalScore: 'Original Score',
-  contribution: 'Score contribution',
-  weight: 'Weight',
-  reversed: 'reversed',
   label: 'Comparison label',
   labelHint: 'Optional · never sent to Jev',
   labelPlaceholder: 'e.g. Control A',
   methodSummary: 'Formula, limits, and data handling',
-  methodBody: 'Each Score (0–4) is multiplied by 25. Positive writing-quality dimensions are subtracted from 100, then the fixed weights are applied. The binary label is computed in code; Jev is never asked whether AI wrote the article.',
+  methodBody: 'The overall AI Slop Score and primary label come from separate Jev Score and choice questions that read the whole article. The eight Scores remain individual detail signals; the primary label is not computed from their average or weighted sum.',
   methodLimit: 'Human writing can score high, and AI-assisted writing can score low. Confidence is not a guarantee of correctness.',
   methodData: 'Jev receives only the title and body. URL, author, date, and comparison labels are excluded. Text is not translated, shortened, or chunked; images, video, and embeds are outside the evaluation. The body is not stored on the server or in an external database, and results stay in this tab memory.',
   scoreSpecification: 'TypeSafe Score specification ↗',
@@ -295,7 +286,7 @@ const english: Copy = {
   sortScore: 'Lowest Slop Score first',
   comparisonAria: 'Article comparison table (horizontal scrolling)',
   articleAndLabel: 'Article / label',
-  classificationAndScore: 'Class / Slop Score',
+  classificationAndScore: 'Class / Overall Score',
   processingTime: 'Time',
   delete: 'Delete',
   deleteFromHistory: title => `Delete ${title}`,

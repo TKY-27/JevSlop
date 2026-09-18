@@ -2,7 +2,7 @@ import { TypeSafeClient } from '@typesafe-ai/sdk';
 import { noteUrl } from '../../lib/article-url';
 import { AppError } from '../../lib/errors';
 import { evaluateArticle } from '../../lib/jev';
-import { composite, slopLabel, SLOP_THRESHOLD, type Evaluation } from '../../lib/scoring';
+import { type Evaluation } from '../../lib/scoring';
 
 type EdgeElement = {
   tagName: string;
@@ -191,12 +191,12 @@ export async function onRequestPost({ request }: PagesContext) {
         send({ phase: 'evaluating', characterCount: article.characterCount });
         const client = new TypeSafeClient({ apiKey, baseURL: 'https://api.typesafe.ai', logLevel: 'off', timeout: JEV_TIMEOUT_MS, retry: { maxRetries: 0 } });
         const evaluation = await evaluateArticle(article, client, signal);
-        const scores = composite(evaluation.answers);
         const result: Evaluation = {
           id: crypto.randomUUID(), url: article.url, title: article.title, author: article.author, publishedAt: article.publishedAt,
           characterCount: article.characterCount, extractionMode: article.extractionMode, label: '', timestamp: new Date().toISOString(),
-          chunked: false, stateMode: 'title-and-body', rubricVersion: 'frozen-v1-title-body', ...evaluation, ...scores,
-          durationMs: performance.now() - started, classification: slopLabel(scores.slopScore), classificationThreshold: SLOP_THRESHOLD, classificationPolicy: 'midpoint-v1',
+          chunked: false, stateMode: 'title-and-body', rubricVersion: 'overall-v1-title-body', ...evaluation,
+          slopScore: evaluation.overallAiSlopScore, durationMs: performance.now() - started,
+          classification: evaluation.overallAiSlopLabel, classificationThreshold: null, classificationPolicy: 'jev-overall-choice-v1',
         };
         send({ phase: 'complete', result });
       } catch (error) {

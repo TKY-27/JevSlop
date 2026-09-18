@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import Image from 'next/image';
 import { AXES, type AxisKey, type Evaluation } from '@/lib/scoring';
 import { resultsCsv } from '@/lib/exports';
 import { browserLanguage, translations, type Language } from '@/lib/i18n';
@@ -58,9 +59,8 @@ export default function Workspace() {
   const dialogRef = useRef<HTMLElement>(null);
   const busy = phase !== 'idle';
   const result = history.find(r => r.id === selected) ?? history[0];
-  const axis = AXES.find(a => a.key === axisKey)!;
   const answer = result?.answers[axisKey];
-  const sorted = [...history].sort((a, b) => sort === 'score' ? a.slopScore - b.slopScore : b.timestamp.localeCompare(a.timestamp));
+  const sorted = [...history].sort((a, b) => sort === 'score' ? a.overallAiSlopScore - b.overallAiSlopScore : b.timestamp.localeCompare(a.timestamp));
   const noticeText = notice === 'analysisDone' ? copy.analysisDone : notice === 'cancelled' ? copy.cancelled : notice === 'deleted' ? copy.deleted : notice === 'historyCleared' ? copy.historyCleared : '';
 
   useEffect(() => {
@@ -178,7 +178,7 @@ export default function Workspace() {
   }
 
   function download(format: 'csv' | 'json') {
-    const content = format === 'csv' ? resultsCsv(history) : JSON.stringify({ rubricVersion: 'frozen-v1-title-body', weights: Object.fromEntries(AXES.map(a => [a.key, a.weight])), results: history }, null, 2);
+    const content = format === 'csv' ? resultsCsv(history) : JSON.stringify({ rubricVersion: 'overall-v1-title-body', questionSet: 'eight-detail-axes-plus-overall-jev-judgment', results: history }, null, 2);
     const objectUrl = URL.createObjectURL(new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'application/json' }));
     const link = document.createElement('a'); link.href = objectUrl; link.download = `jevslop-${new Date().toISOString().slice(0, 10)}.${format}`; link.click();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
@@ -194,7 +194,7 @@ export default function Workspace() {
     <button className="settings-button" type="button" aria-label={copy.settings} aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => { setSettingsNotice(''); setDraftKey(''); setSettingsOpen(true); }}><SettingsIcon /></button>
     <section className="search-stage" aria-label={copy.urlLabel}>
       <div className="search-group">
-        <h1 className="wordmark">JevSlop</h1>
+        <h1 className="wordmark"><Image src="/logo.svg" alt="" aria-hidden="true" width={56} height={56} /><span>JevSlop</span></h1>
         <form onSubmit={evaluate}>
           <label htmlFor="article-url" className="sr-only">{copy.urlLabel}</label>
           <div className={`url-control ${busy ? 'is-busy' : ''}`}>
@@ -219,16 +219,16 @@ export default function Workspace() {
       <section className="result-summary enter" key={result.id} aria-label={copy.resultAria} ref={resultRef} tabIndex={-1}>
         <a className="result-title" href={result.url} target="_blank" rel="noreferrer noopener">{result.title}<span aria-hidden="true"> ↗</span></a>
         <h2 className="verdict">{result.classification === 'AI Slop' ? copy.aiSlop : copy.notAiSlop}</h2>
+        <div className="summary-score"><span className="overline">{copy.score}</span><p className="score-value"><strong>{fixed(result.overallAiSlopScore)}</strong><span>/ 100</span></p></div>
+        <p className="verdict-note">{copy.overallVerdictNote}</p>
         <p className="verdict-note">{copy.authorshipNote}</p>
         <button className="details-button" type="button" aria-expanded={showDetails} aria-controls="score-details" onClick={() => setShowDetails(!showDetails)}>{showDetails ? copy.detailsOpen : copy.detailsClosed}<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className={showDetails ? 'chevron open' : 'chevron'} aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg></button>
       </section>
 
       {showDetails && <section id="score-details" className="score-details enter" aria-labelledby="detail-heading">
         <div className="detail-heading"><h2 id="detail-heading">{copy.detailsHeading}</h2><span>{result.model}</span></div>
-        <div className="score-overview"><div><span className="overline">{copy.score}</span><p className="score-value"><strong>{fixed(result.slopScore)}</strong><span>/ 100</span></p></div>
-          <dl className="run-info"><div><dt>{copy.articleLength}</dt><dd>{copy.characters(result.characterCount.toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US'))}</dd></div><div><dt>{copy.duration}</dt><dd>{seconds(result.durationMs)}</dd></div><div><dt>{copy.jevDuration}</dt><dd>{seconds(result.jevDurationMs)}</dd></div><div><dt>{copy.evaluatedAt}</dt><dd>{formatTime(result.timestamp, language)}</dd></div></dl>
-        </div>
-        <p className="classification-rule">{copy.classificationRule(Math.abs(result.slopScore - 50) < 0.05 ? copy.nearBoundary(result.slopScore.toPrecision(8)) : '')}</p>
+        <div className="score-overview"><dl className="run-info"><div><dt>{copy.articleLength}</dt><dd>{copy.characters(result.characterCount.toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US'))}</dd></div><div><dt>{copy.duration}</dt><dd>{seconds(result.durationMs)}</dd></div><div><dt>{copy.jevDuration}</dt><dd>{seconds(result.jevDurationMs)}</dd></div><div><dt>{copy.evaluatedAt}</dt><dd>{formatTime(result.timestamp, language)}</dd></div></dl></div>
+        <p className="classification-rule">{copy.classificationRule}</p>
         <div className="source-meta"><a href={result.url} target="_blank" rel="noreferrer noopener">{result.url}</a>{result.author && <span>{result.author}</span>}<span>{copy.sourceMode}</span></div>
         <div className="axis-list"><div className="axis-list-heading"><span>{copy.axesHeading}</span><span>{copy.score100}</span><span>{copy.confidence}</span></div>
           {AXES.map((a, index) => { const axisCopy = copy.axis[a.key]; return <button key={a.key} type="button" className={`axis-row ${axisKey === a.key ? 'active' : ''}`} onClick={() => setAxisKey(a.key)} aria-pressed={axisKey === a.key} style={{ '--delay': `${index * 25}ms` } as CSSProperties}>
@@ -243,11 +243,11 @@ export default function Workspace() {
           <div className="probability-chart" aria-label={`${copy.axis[axisKey].name}: ${copy.probability}`}>
             {copy.axis[axisKey].levels.map((label, i) => <div className="probability-column" key={i}><span className="probability-number">{percent(answer.probabilities[i])}</span><div className="probability-track" aria-hidden="true"><div className="probability-bar" style={{ '--probability': answer.probabilities[i], '--delay': `${i * 40}ms` } as CSSProperties} /></div><span className="level-index">L{i + 1}</span><span className="level-label">{label}</span></div>)}
           </div>
-          <div className="distribution-stats"><span>{copy.originalScore} <b>{answer.score.toFixed(3)} / 4</b></span><span>{copy.confidence} <b>{percent(answer.confidence)}</b></span><span>{copy.contribution} <b>{fixed((axis.positive ? 100 - result.scores[axisKey] : result.scores[axisKey]) * axis.weight)}</b></span><span>{copy.weight} <b>{axis.weight * 100}%{axis.positive ? ` (${copy.reversed})` : ''}</b></span></div>
+          <div className="distribution-stats"><span>{copy.originalScore} <b>{answer.score.toFixed(3)} / 4</b></span><span>{copy.confidence} <b>{percent(answer.confidence)}</b></span></div>
         </div>}
         <div className="label-section"><label htmlFor="result-label">{copy.label}<span>{copy.labelHint}</span></label><input id="result-label" maxLength={80} placeholder={copy.labelPlaceholder} value={result.label} onChange={e => { const label = e.target.value; setHistory(old => old.map(r => r.id === result.id ? { ...r, label } : r)); }} /></div>
-        <details className="plain-details"><summary>{copy.methodSummary}</summary><div className="method-body"><p>{copy.methodBody}</p><ul className="weight-list">{AXES.map(a => <li key={a.key}><span>{copy.axis[a.key].name}{a.positive ? ` (${copy.reversed})` : ''}</span><span>{a.weight * 100}%</span></li>)}</ul><p>{copy.methodLimit}</p><p>{copy.methodData}</p><a href="https://docs.typesafe.ai/primitives/score" target="_blank" rel="noreferrer noopener">{copy.scoreSpecification}</a></div></details>
-        <details className="plain-details"><summary>{copy.rawResponse}</summary><pre>{JSON.stringify({ model: result.model, answers: result.answers, usage: result.usage, requestId: result.requestId }, null, 2)}</pre></details>
+        <details className="plain-details"><summary>{copy.methodSummary}</summary><div className="method-body"><p>{copy.methodBody}</p><p>{copy.methodLimit}</p><p>{copy.methodData}</p><a href="https://docs.typesafe.ai/primitives/score" target="_blank" rel="noreferrer noopener">{copy.scoreSpecification}</a></div></details>
+        <details className="plain-details"><summary>{copy.rawResponse}</summary><pre>{JSON.stringify({ model: result.model, answers: result.answers, overallAiSlopScoreAnswer: result.overallAiSlopScoreAnswer, overallAiSlopLabelAnswer: result.overallAiSlopLabelAnswer, usage: result.usage, requestId: result.requestId }, null, 2)}</pre></details>
       </section>}
     </>}
 
@@ -256,7 +256,7 @@ export default function Workspace() {
       {showHistory && <div id="comparison" className="comparison enter">
         <div className="comparison-heading"><h2>{copy.historyHeading}</h2><div className="export-actions" aria-label={copy.export}><button type="button" onClick={() => download('csv')}>CSV <Arrow down /></button><button type="button" onClick={() => download('json')}>JSON <Arrow down /></button></div></div>
         <div className="table-toolbar"><p>{copy.selectNotice}</p><label htmlFor="sort">{copy.sortLabel}<select id="sort" value={sort} onChange={e => setSort(e.target.value)}><option value="newest">{copy.sortNewest}</option><option value="score">{copy.sortScore}</option></select></label></div>
-        <div className="table-scroll" role="region" aria-label={copy.comparisonAria} tabIndex={0}><table><thead><tr><th scope="col" className="title-col">{copy.articleAndLabel}</th><th scope="col">{copy.classificationAndScore}</th>{AXES.map(a => <th scope="col" key={a.key}>{copy.axis[a.key].name}<small>{copy.axis[a.key].direction}<br />{copy.score100} / {copy.confidence}</small></th>)}<th scope="col">{copy.processingTime}</th><th scope="col"><span className="sr-only">{copy.delete}</span></th></tr></thead><tbody>{sorted.map(r => <tr key={r.id} className={r.id === result?.id ? 'selected-row' : ''}><th scope="row" className="title-col"><button type="button" className="table-title" onClick={() => chooseResult(r.id)} aria-current={r.id === result?.id ? 'true' : undefined}>{r.title}</button><a className="table-url" href={r.url} target="_blank" rel="noreferrer noopener">{r.url}</a>{r.label && <span className="table-label">{r.label}</span>}</th><td className="table-slop">{fixed(r.slopScore)}<small>{r.classification === 'AI Slop' ? copy.aiSlop : copy.notAiSlop}</small></td>{AXES.map(a => <td key={a.key}>{fixed(r.scores[a.key])}<small>{percent(r.answers[a.key].confidence)}</small></td>)}<td>{seconds(r.durationMs)}</td><td><button type="button" className="delete-button" aria-label={copy.deleteFromHistory(r.title)} onClick={() => { setHistory(old => old.filter(item => item.id !== r.id)); setNotice('deleted'); }}>{copy.delete}</button></td></tr>)}</tbody></table></div>
+        <div className="table-scroll" role="region" aria-label={copy.comparisonAria} tabIndex={0}><table><thead><tr><th scope="col" className="title-col">{copy.articleAndLabel}</th><th scope="col">{copy.classificationAndScore}</th>{AXES.map(a => <th scope="col" key={a.key}>{copy.axis[a.key].name}<small>{copy.axis[a.key].direction}<br />{copy.score100} / {copy.confidence}</small></th>)}<th scope="col">{copy.processingTime}</th><th scope="col"><span className="sr-only">{copy.delete}</span></th></tr></thead><tbody>{sorted.map(r => <tr key={r.id} className={r.id === result?.id ? 'selected-row' : ''}><th scope="row" className="title-col"><button type="button" className="table-title" onClick={() => chooseResult(r.id)} aria-current={r.id === result?.id ? 'true' : undefined}>{r.title}</button><a className="table-url" href={r.url} target="_blank" rel="noreferrer noopener">{r.url}</a>{r.label && <span className="table-label">{r.label}</span>}</th><td className="table-slop">{fixed(r.overallAiSlopScore)}<small>{r.classification === 'AI Slop' ? copy.aiSlop : copy.notAiSlop}</small></td>{AXES.map(a => <td key={a.key}>{fixed(r.scores[a.key])}<small>{percent(r.answers[a.key].confidence)}</small></td>)}<td>{seconds(r.durationMs)}</td><td><button type="button" className="delete-button" aria-label={copy.deleteFromHistory(r.title)} onClick={() => { setHistory(old => old.filter(item => item.id !== r.id)); setNotice('deleted'); }}>{copy.delete}</button></td></tr>)}</tbody></table></div>
         <div className="history-footer"><p>{copy.historyNotice}</p>{confirmClear ? <div className="clear-confirm"><span>{copy.clearConfirm(history.length)}</span><button type="button" className="danger-button" onClick={() => { setHistory([]); setSelected(undefined); setShowDetails(false); setShowHistory(false); setConfirmClear(false); setNotice('historyCleared'); }}>{copy.clear}</button><button type="button" onClick={() => setConfirmClear(false)}>{copy.back}</button></div> : <button type="button" className="quiet-button" onClick={() => setConfirmClear(true)}>{copy.clearHistory}</button>}</div>
       </div>}
     </section>}

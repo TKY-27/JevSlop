@@ -1,19 +1,32 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { TypeSafeClient } from '@typesafe-ai/sdk';
+import { TypeSafeClient, type ScoreResponse } from '@typesafe-ai/sdk';
 import { noteUrl, extractArticle, fetchArticle, readLimited } from '../lib/article';
-import { AXES, composite, validateAnswers, slopLabel, type Answers, type Evaluation } from '../lib/scoring';
+import { AXES, normalizeScores, validateAnswers, validateOverallLabelAnswer, validateScoreAnswer, type Answers, type Evaluation, type OverallAiSlopLabel, type OverallAiSlopLabelAnswer } from '../lib/scoring';
 import { buildRequest, evaluateArticle } from '../lib/jev';
 import { resultsCsv } from '../lib/exports';
 
 const html = readFileSync(new URL('./fixtures/note.html', import.meta.url), 'utf8');
 const url = 'https://note.com/test/n/nabcdef';
+
+function scoreAnswerAt(score: number): ScoreResponse {
+  return {
+    type: 'score', score, confidence: 1,
+    probabilities: Object.fromEntries([0, 1, 2, 3, 4].map(i => [i, i === score ? 1 : 0])),
+    legend: Object.fromEntries(['L0', 'L1', 'L2', 'L3', 'L4'].map((level, i) => [i, level])),
+  } as ScoreResponse;
+}
+
 function answersAt(score: number): Answers {
-  return Object.fromEntries(AXES.map(a => [a.key, { type: 'score', score, confidence: 1,
-    probabilities: Object.fromEntries(a.levels.map((_, i) => [i, i === score ? 1 : 0])),
-    legend: Object.fromEntries(a.levels.map((level, i) => [i, level])),
-  }])) as Answers;
+  return Object.fromEntries(AXES.map(a => [a.key, scoreAnswerAt(score)])) as Answers;
+}
+
+function overallLabelAnswer(choice: OverallAiSlopLabel): OverallAiSlopLabelAnswer {
+  return {
+    type: 'choice', choice, confidence: 1,
+    probabilities: { 'AI Slop': choice === 'AI Slop' ? 1 : 0, 'Not AI Slop': choice === 'Not AI Slop' ? 1 : 0 },
+  };
 }
 
 test('URL and redirect allowlist blocks arbitrary hosts, credentials, translations and private destinations', async () => {
@@ -39,50 +52,54 @@ test('note DOM extraction preserves prose/headings, excludes chrome, and rejects
   await assert.rejects(fetchArticle(url, undefined, async () => new Response('no', { status: 404 })), { code: 'ARTICLE_UNAVAILABLE' });
 });
 
-test('frozen composition keeps all eight weights, zero-based expectation, reversal and raw confidence', () => {
-  assert.deepEqual(AXES.map(a => [a.key, a.weight, a.positive]), [
-    ['informationDensity', .2, true], ['specificity', .15, true], ['redundancy', .15, false], ['genericness', .15, false], ['templatePhrasing', .15, false], ['unnecessaryVerbosity', .1, false], ['personalEvidence', .05, true], ['coherence', .05, true],
+test('eight detail scores remain independently normalized and are not a primary composite', () => {
+  assert.deepEqual(AXES.map(a => [a.key, a.positive]), [
+    ['informationDensity', true], ['specificity', true], ['redundancy', false], ['genericness', false], ['templatePhrasing', false], ['unnecessaryVerbosity', false], ['personalEvidence', true], ['coherence', true],
   ]);
-  const answers = answersAt(0);
-  for (const a of AXES) if (a.positive) answers[a.key] = answersAt(4)[a.key];
-  assert.equal(composite(answers).slopScore, 0);
-  for (const a of AXES) answers[a.key] = answersAt(a.positive ? 0 : 4)[a.key];
-  assert.equal(composite(answers).slopScore, 100);
-  assert.equal(composite(answersAt(2)).slopScore, 50);
-  assert.equal(slopLabel(49.999), 'Not AI Slop');
-  assert.equal(slopLabel(50), 'AI Slop');
-  assert.equal(slopLabel(100), 'AI Slop');
-  validateAnswers(answers);
+  const answers = answersAt(2);
+  assert.equal(normalizeScores(answers).informationDensity, 50);
   const mixed = answersAt(2);
   mixed.informationDensity = { ...mixed.informationDensity, score: 1.3, confidence: .54, probabilities: { 0: 0, 1: .7, 2: .3, 3: 0, 4: 0 } };
   validateAnswers(mixed);
-  assert.equal(composite(mixed).scores.informationDensity, 32.5);
-  assert.equal(composite(mixed).slopScore, 53.5);
+  assert.equal(normalizeScores(mixed).informationDensity, 32.5);
   assert.throws(() => validateAnswers({ ...mixed, coherence: { ...mixed.coherence, score: NaN } }));
   assert.throws(() => validateAnswers({ ...mixed, coherence: { ...mixed.coherence, probabilities: { 0: .5 } } }));
   const rounded = answersAt(2);
   rounded.coherence = { ...rounded.coherence, score: 2.99, probabilities: { 0: 0, 1: .03, 2: .1, 3: .73, 4: .14 } };
   validateAnswers(rounded);
-  assert.equal(composite(rounded).scores.coherence, 74.75);
-  assert.throws(() => validateAnswers({ ...rounded, coherence: { ...rounded.coherence, score: 3.2 } }));
-  assert.throws(() => validateAnswers({ ...rounded, coherence: { ...rounded.coherence, probabilities: { 0: .1, 1: .03, 2: .1, 3: .73, 4: .14 } } }));
+  assert.equal(normalizeScores(rounded).coherence, 74.75);
+  validateScoreAnswer(scoreAnswerAt(4));
+  validateOverallLabelAnswer(overallLabelAnswer('AI Slop'));
+  assert.throws(() => validateOverallLabelAnswer({ ...overallLabelAnswer('AI Slop'), choice: 'unknown' }));
 });
 
-test('official SDK sends exactly title/body and eight independent Scores in one call, preserves response and sanitizes errors', async () => {
+test('official SDK sends title/body, eight detail Scores, and separate overall Jev Score/choice', async () => {
   const article = { ...extractArticle(html), url, label: 'NEVER_SEND_GROUP', author: 'NEVER_SEND_AUTHOR' };
   const request = buildRequest(article);
   assert.deepEqual(Object.keys(request.state), ['title', 'body']);
-  assert.equal(Object.keys(request.questions).length, 8);
+  assert.equal(Object.keys(request.questions).length, 10);
   assert.ok(!JSON.stringify(request).includes('NEVER_SEND'));
-  for (const question of Object.values(request.questions)) { assert.equal(question.type, 'score'); assert.equal(question.criteria.length, 5); }
+  for (const axis of AXES) {
+    const question = request.questions[axis.key];
+    assert.equal(question.type, 'score');
+    assert.equal(question.criteria.length, 5);
+  }
+  assert.equal(request.questions.overallAiSlopScore.type, 'score');
+  assert.equal(request.questions.overallAiSlopScore.criteria.length, 5);
+  assert.equal(request.questions.overallAiSlopLabel.type, 'choice');
+  assert.deepEqual(Object.keys(request.questions.overallAiSlopLabel.criteria), ['AI Slop', 'Not AI Slop']);
+  const responseAnswers = { ...answersAt(0), overallAiSlopScore: scoreAnswerAt(3), overallAiSlopLabel: overallLabelAnswer('AI Slop') };
   let calls = 0;
   const client = new TypeSafeClient({ apiKey: 'test-only-placeholder', logLevel: 'off', retry: { maxRetries: 0 }, fetch: async (target, init) => {
     calls++; assert.equal(target, 'https://api.typesafe.ai/v1/systemone');
     assert.deepEqual(JSON.parse(String(init?.body)), request);
-    return Response.json({ model: 'jev-1.13.0', answers: answersAt(2), usage: { input_tokens: 200, output_tokens: 40 } }, { headers: { 'x-typesafe-request-id': 'synthetic-request' } });
+    return Response.json({ model: 'jev-1.13.0', answers: responseAnswers, usage: { input_tokens: 200, output_tokens: 40 } }, { headers: { 'x-typesafe-request-id': 'synthetic-request' } });
   } });
   const response = await evaluateArticle(article, client);
-  assert.equal(calls, 1); assert.deepEqual(response.answers, answersAt(2)); assert.equal(response.requestId, 'synthetic-request');
+  assert.equal(calls, 1); assert.deepEqual(response.answers, answersAt(0)); assert.equal(response.requestId, 'synthetic-request');
+  assert.equal(response.overallAiSlopScore, 75);
+  assert.equal(response.overallAiSlopLabel, 'AI Slop');
+  assert.equal(response.scores.informationDensity, 0);
   for (const [status, code] of [[401, 'JEV_AUTH'], [429, 'JEV_RATE_LIMIT'], [500, 'JEV_UNAVAILABLE'], [413, 'JEV_INPUT']] as const) {
     const failing = new TypeSafeClient({ apiKey: 'test-only-placeholder', logLevel: 'off', retry: { maxRetries: 0 }, fetch: async () => Response.json({ error: 'sensitive upstream detail' }, { status }) });
     await assert.rejects(evaluateArticle(article, failing), (e: unknown) => e instanceof Error && 'code' in e && e.code === code && !e.message.includes('sensitive'));
@@ -91,15 +108,18 @@ test('official SDK sends exactly title/body and eight independent Scores in one 
   await assert.rejects(evaluateArticle(article, invalid), { code: 'INVALID_JEV_RESPONSE' });
 });
 
-test('numeric CSV includes probabilities/confidence, protects spreadsheet formulas and excludes body', () => {
+test('numeric CSV includes direct overall Jev data and detail probabilities, protects formulas, and excludes body', () => {
   const answers = answersAt(2);
+  const overallScoreAnswer = scoreAnswerAt(3);
+  const overallLabel = overallLabelAnswer('AI Slop');
   const result: Evaluation = { id: 'test', url, title: '=UNTRUSTED()', label: '+formula', timestamp: '2026-09-18T00:00:00Z', characterCount: 123,
-    extractionMode: 'note-dom', chunked: false, stateMode: 'title-and-body', rubricVersion: 'frozen-v1-title-body', durationMs: 125, jevDurationMs: 100,
-    model: 'jev-1.13.0', usage: { input_tokens: 200, output_tokens: 40 }, answers, ...composite(answers),
-    classification: 'AI Slop', classificationThreshold: 50, classificationPolicy: 'midpoint-v1' };
+    extractionMode: 'note-dom', chunked: false, stateMode: 'title-and-body', rubricVersion: 'overall-v1-title-body', durationMs: 125, jevDurationMs: 100,
+    model: 'jev-1.13.0', usage: { input_tokens: 200, output_tokens: 40 }, answers, scores: normalizeScores(answers), overallAiSlopScore: 75, slopScore: 75,
+    overallAiSlopLabel: 'AI Slop', overallAiSlopScoreAnswer: overallScoreAnswer, overallAiSlopLabelAnswer: overallLabel,
+    classification: 'AI Slop', classificationThreshold: null, classificationPolicy: 'jev-overall-choice-v1' };
   const csv = resultsCsv([result]);
   assert.ok(csv.includes("'=UNTRUSTED()")); assert.ok(csv.includes("'+formula"));
-  assert.ok(csv.includes('informationDensity.confidence')); assert.ok(csv.includes('coherence.p4'));
+  assert.ok(csv.includes('overallAiSlopScore')); assert.ok(csv.includes('overallAiSlopLabel.pAI Slop')); assert.ok(csv.includes('informationDensity.confidence')); assert.ok(csv.includes('coherence.p4'));
   assert.ok(!csv.includes('土曜日の朝')); assert.equal(csv.split('\r\n').length, 2);
 });
 
@@ -113,8 +133,8 @@ test('BYOK key stays session-only, out of results/exports/errors, and the Functi
   assert.ok(!clientSource.includes('rememberKey'));
   const functionSource = readFileSync(new URL('../functions/api/evaluate.ts', import.meta.url), 'utf8');
   assert.ok(functionSource.includes("logLevel: 'off'")); assert.ok(functionSource.includes("baseURL: 'https://api.typesafe.ai'"));
-  assert.ok(functionSource.includes("authorization")); assert.ok(!functionSource.includes('process.env')); assert.ok(!functionSource.includes('console.'));
-  assert.ok(!functionSource.includes('...article,'));
+  assert.ok(functionSource.includes('authorization')); assert.ok(!functionSource.includes('process.env')); assert.ok(!functionSource.includes('console.'));
+  assert.ok(!functionSource.includes('...article,')); assert.ok(functionSource.includes('classification: evaluation.overallAiSlopLabel'));
   const secret = 'ts-secret-test-value';
   const resultJson = JSON.stringify({ results: [{ title: 'safe', url, label: '', error: 'JEV_AUTH' }] });
   assert.ok(!resultJson.includes(secret));

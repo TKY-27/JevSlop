@@ -1,19 +1,20 @@
 # JevSlop
 
-JevSlop evaluates public note articles across eight writing-quality dimensions with TypeSafe Jev. It shows a transparent Slop Score; it is not an AI-authorship detector. [日本語版](README.ja.md)
+JevSlop asks TypeSafe Jev for a whole-article writing-quality judgment and eight detail signals. It shows a transparent AI Slop Score; it is not an AI-authorship detector. [日本語版](README.ja.md)
 
 ## What it does
 
-Paste a public `https://note.com/<user>/n/<article-id>` URL, then choose **Analyze**. JevSlop fetches the article, extracts its title and visible body, evaluates the fixed eight-axis rubric, and computes the weighted score in ordinary TypeScript code.
+Paste a public `https://note.com/<user>/n/<article-id>` URL, then choose **Analyze**. JevSlop fetches the article, extracts its title and visible body, asks Jev for a whole-article AI Slop judgment and score, and shows eight separate writing-quality detail signals.
 
 - Japanese and English UI, selected from the browser language on first visit.
-- Eight atomic Jev `Score` questions in one `systemOne` request.
-- Continuous `Slop Score` from 0–100, per-axis distributions, confidence, timing, and comparison history.
+- Eight atomic detail `Score` questions plus a Jev overall `Score` and `choice` in one `systemOne` request.
+- Jev-derived overall `AI Slop Score` from 0–100, per-axis distributions, confidence, timing, and comparison history.
 - CSV/JSON exports contain numeric results and metadata, never the article body or API key.
 - Full-body evaluation only: no silent truncation or chunking.
 - Reduced-motion, keyboard, focus, Escape-to-close, and mobile support.
+- `public/logo.svg`, `public/favicon.svg`, and a 1200×630 `public/og-image.png` provide the shared brand and social metadata assets.
 
-The `AI Slop` / `Not AI Slop` label is a provisional midpoint display convention for writing characteristics. A human article can score high, and AI-assisted writing can score low. The result must not be read as an authorship probability.
+The primary `AI Slop` / `Not AI Slop` label is Jev's whole-article choice, not an average or weighted sum of the eight detail axes. It describes writing characteristics: a human article can score high, and AI-assisted writing can score low. The result must not be read as an authorship probability.
 
 ## Bring Your Own Key
 

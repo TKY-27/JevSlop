@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>JevSlop</title>
+  <rect width="64" height="64" rx="18" fill="#ad365b"/>
+  <path d="M18 16h28M44 16v23c0 6.627-5.373 12-12 12s-12-5.373-12-12V16" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+</svg>

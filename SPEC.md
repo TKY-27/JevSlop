@@ -11,16 +11,16 @@ The product must never claim to detect whether AI wrote an article. Its claim is
 1. User pastes a public note article URL.
 2. The same-origin Pages Function validates the URL and fetches the page; no manual article copy/paste is required.
 3. App extracts title, author/date when available, and the visible article body.
-4. Jev evaluates eight atomic dimensions against the article title and body only.
-5. Ordinary application code normalizes the eight results and computes the composite Slop Score.
-6. UI first shows `AI Slop` or `Not AI Slop`; the Details button reveals Slop Score, per-axis scores/probabilities/confidence, latency and article length. Comparison history is separately expandable.
+4. Jev evaluates eight atomic detail dimensions plus an independent whole-article Score and choice against the article title and body only.
+5. Ordinary application code normalizes only the eight detail results for display. The overall Slop Score and primary label come directly from Jev; no detail-axis average or weighted sum produces the primary result.
+6. UI first shows Jev's `AI Slop` or `Not AI Slop` choice and overall score; the Details button reveals the eight per-axis scores/probabilities/confidence, latency and article length. Comparison history is separately expandable.
 7. User can compare multiple articles and export the numeric results for later note/article analysis.
 
 ## 3. Evaluation must be blind
 
 Source metadata can bias the model. Keep URL, author, account name, experiment group, publication date, and user labels outside the Jev `state`.
 
-Jev receives exactly `{ title, body }`: the article title and normalized visible body. This input policy was explicitly updated on 2026-09-18 before the first evaluation; the eight rubrics and weights are unchanged. Do not tell Jev whether an article is AI-heavy, human-written, famous, old, new, or expected to pass/fail. Display source metadata in the UI only after evaluation. Title/body may inherently mention an author or topic; do not rewrite them to conceal that information.
+Jev receives exactly `{ title, body }`: the article title and normalized visible body. This input policy was explicitly updated on 2026-09-18 before the first evaluation. Do not tell Jev whether an article is AI-heavy, human-written, famous, old, new, or expected to pass/fail. Display source metadata in the UI only after evaluation. Title/body may inherently mention an author or topic; do not rewrite them to conceal that information.
 
 Do not translate the article before evaluation. Japanese and English text should be judged in the original language.
 
@@ -90,38 +90,30 @@ Use one ordered five-level Jev `Score` question for each dimension. Keep the que
 
 The implementation may adjust exact SDK syntax only to match the current official API. It must not change the semantic meaning, number, order, or direction of these rubrics without an explicit user request.
 
-## 5. Composite Slop Score
+## 5. Whole-article Jev judgment
 
-Normalize every five-level Score to 0–100 using the current SDK's numeric Score semantics. Verify the official response shape before implementation rather than assuming it.
+The primary `AI Slop Score` is a separate five-level Jev `Score` question, normalized to 0–100 using the current SDK's numeric Score semantics. It judges the complete article as a reader-facing writing-quality impression. It must consider low information density, excessive generality or abstraction, thin value despite isolated specifics, template-like safe prose, repetition, unnecessary length, weak originality or observation, and the likely reader takeaway.
 
-For positive dimensions, convert them to slop contribution with `100 - normalizedScore`. For negative dimensions, use the normalized score directly.
+The overall rubric must not ask whether AI authored the article. It must not average or weighted-sum the eight detail dimensions, and a strong isolated detail must not automatically cancel a thin whole-article impression.
 
-Frozen weights:
+Use a separate Jev `choice` question with exactly these labels:
 
-| Dimension | Weight |
-| --- | ---: |
-| informationDensity | 20% |
-| specificity | 15% |
-| redundancy | 15% |
-| genericness | 15% |
-| templatePhrasing | 15% |
-| unnecessaryVerbosity | 10% |
-| personalEvidence | 5% |
-| coherence | 5% |
+| Label | Meaning |
+| --- | --- |
+| `AI Slop` | The whole article reads as low-value, generic, padded, repetitive, formulaic, or superficially polished. |
+| `Not AI Slop` | The whole article provides enough meaningful value, concrete thought, observation, evidence, or distinctive voice for its length. |
 
-Weights sum to 100%. Round the final display to one decimal place; retain higher precision internally.
+The overall Score is displayed to one decimal place; retain higher precision internally. Preserve the Jev choice and its confidence/probabilities in the result.
 
 The numeric value is **Slop Score**, never “AI probability”, “AI-generated probability”, or equivalent.
 
-The user requested binary display on 2026-09-18. Code labels the unrounded composite `AI Slop` at 50 or above and `Not AI Slop` below 50 (`midpoint-v1`). This is an unvalidated display convention for writing characteristics, not a classifier of authorship. Preserve the continuous score, threshold, and policy in exports. Do not change the threshold after seeing results to improve the experiment. Near the boundary, display additional precision in the detailed rule to explain rounded scores.
-
 ## 6. Uncertainty and raw evidence
 
-Preserve the full Jev answer data that the official SDK exposes for each dimension, including ordered score, probability distribution, confidence/uncertainty fields if available, model identifier if available, and request latency.
+Preserve the full Jev answer data that the official SDK exposes for each detail dimension and the overall Score/choice, including ordered score, probability distribution, confidence/uncertainty fields if available, model identifier if available, and request latency.
 
 If the current official SDK does not expose a dedicated confidence field for Score answers, do not invent one. Display the probability distribution and derive an uncertainty statistic only if it is mathematically defined and clearly labeled as derived.
 
-The detailed result view should make it possible to inspect why a high or low composite score occurred.
+The detailed result view should make the distinction between the whole-article judgment and the eight detail signals explicit.
 
 ## 7. note URL ingestion
 
@@ -145,7 +137,7 @@ If a normal article exceeds a verified TypeSafe/Jev request limit, never silentl
 Support several evaluated articles in one local session. Each result should contain:
 - title and source URL
 - optional user-defined experiment label/group
-- Slop Score
+- overall Jev AI Slop Score and label
 - eight normalized dimension scores
 - raw probability/uncertainty data where available
 - article character count
@@ -163,7 +155,7 @@ Provide CSV and JSON export of result metadata/scores. Do not export full copyri
 
 The UI follows the user-supplied Google start-page reference: a centered **JevSlop** wordmark and a single rounded URL input with an integrated submit action. No subtitle, marketing copy, header/footer navigation, empty result panels or decorative dashboard. Japanese UI is the default.
 
-After evaluation, show the article title, `AI Slop` / `Not AI Slop`, one concise authorship clarification, and a **Details** button. The numeric result, eight axes, probability distributions, confidence, metadata and raw response appear only when Details is expanded. Comparison history and exports have their own disclosure.
+After evaluation, show the article title, Jev's `AI Slop` / `Not AI Slop` choice, the overall AI Slop Score, one concise whole-article clarification, and a **Details** button. The eight detail axes, probability distributions, confidence, metadata and raw response appear when Details is expanded. Comparison history and exports have their own disclosure.
 
 PC and smartphone layouts are both required. Prevent page-wide overflow; a comparison table may scroll within its own labeled region. Preserve keyboard focus, accessible names, readable contrast and reduced-motion support. Motion should explain the transition from input to result and reveal distributions without bounces, perpetual decorative movement, or layout thrashing.
 
@@ -206,19 +198,19 @@ Errors should state what failed and what the user can do next; do not expose sta
 Do not build an oversized test suite. Cover the boundaries that could invalidate the experiment:
 - note URL allowlist/redirect validation
 - article extraction from a representative saved HTML fixture
-- deterministic normalization/composite-score math and frozen weights
+- deterministic normalization of the eight detail Scores and the direct overall Score/choice boundary
 - only title/body are in the Jev state; source metadata and experiment labels are absent
 - BYOK key storage and the key-free result/export boundary
 
 Then run typecheck/lint/build and one end-to-end local happy path. If network access and the user's key are available, perform one real Jev smoke evaluation without storing the article body. Otherwise use a faithful mocked response and clearly report that the real API smoke test remains unexecuted.
 
-The task is complete when a user can paste a public note URL, receive a real Jev-based eight-axis evaluation and transparent Slop Score, compare multiple results, and export the numeric experiment data without manually copying article text.
+The task is complete when a user can paste a public note URL, receive a real Jev-based whole-article judgment plus eight detail signals and transparent overall Score, compare multiple results, and export the numeric experiment data without manually copying article text.
 
 ## Implementation choices (2026-09-18)
 
-- Official JavaScript SDK `@typesafe-ai/sdk` 0.6.0; model pinned to `jev-1.13.0`. One `systemOne` call, automatic retries disabled.
-- Live API validation found independently rounded two-decimal scores and probabilities. Validate their consistency using the mathematical rounding bounds (probability sum ±0.025, weighted expectation vs score ±0.055), retain the raw values, and never renormalize or replace the returned score. This wire-format fix leaves the rubric, weights and model unchanged.
-- Each Score is 0–4; normalized score = `score * 25`. Preserve the full SDK answer and request/model/token metadata. Rubric identifier: `frozen-v1-title-body`.
+- Official JavaScript SDK `@typesafe-ai/sdk` 0.6.0; model pinned to `jev-1.13.0`. One `systemOne` call contains eight detail Scores, one overall Score, and one overall choice; automatic retries are disabled.
+- Live API validation found independently rounded two-decimal scores and probabilities. Validate their consistency using the mathematical rounding bounds (probability sum ±0.025, weighted expectation vs score ±0.055), retain the raw values, and never renormalize or replace the returned score.
+- Each Score is 0–4; normalized score = `score * 25`. Preserve the full SDK answer and request/model/token metadata. Rubric identifier: `overall-v1-title-body`.
 - DOM parsing uses Cheerio with the current note-specific `.note-common-styles__textnote-body` container. The public page was inspected directly. Unknown layouts fail closed instead of using a broad whole-page fallback.
 - HTML is limited to 3 MiB, note fetch to 20 seconds, Jev to 60 seconds; article body must contain at least 100 Unicode characters. Redirects are validated before each hop.
 - Official model limits: 64k tokens for the whole request, 32k for state plus the longest question. No assumed character-to-token conversion or silent truncation. The service can reject an oversized article; no partial score is produced. Chunking is not implemented.

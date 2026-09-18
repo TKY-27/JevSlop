@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">JevSlop</title>
+  <desc id="description">Whole-article writing quality judgment with eight detail signals.</desc>
+  <rect width="1200" height="630" fill="#fff"/>
+  <g transform="translate(552 142) scale(1.5)">
+    <rect width="64" height="64" rx="18" fill="#ad365b"/>
+    <path d="M18 16h28M44 16v23c0 6.627-5.373 12-12 12s-12-5.373-12-12V16" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+  </g>
+  <text x="600" y="350" fill="#ad365b" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="600" letter-spacing="-3" text-anchor="middle">JevSlop</text>
+  <path d="M470 390h260" stroke="#f386a1" stroke-width="2"/>
+  <text x="600" y="438" fill="#686b76" font-family="Arial, Helvetica, sans-serif" font-size="25" text-anchor="middle">Writing quality, read as a whole.</text>
+</svg>
