@@ -10,3 +10,9 @@ coverage/
 playwright-report/
 test-results/
 .tmp/
+*.tsbuildinfo
+
+# Explicit secret and experiment exclusions for the public repository
+.env.local
+data/**
+!data/.gitkeep

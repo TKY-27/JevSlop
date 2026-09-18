@@ -11,16 +11,16 @@ The product must never claim to detect whether AI wrote an article. Its claim is
 1. User pastes a public note article URL.
 2. Server validates the URL and fetches the page; no manual article copy/paste is required.
 3. App extracts title, author/date when available, and the visible article body.
-4. Jev evaluates eight atomic dimensions against the article body only.
+4. Jev evaluates eight atomic dimensions against the article title and body only.
 5. Ordinary application code normalizes the eight results and computes the composite Slop Score.
-6. UI shows the result, per-axis scores/probabilities/confidence, latency, article length, and comparison history.
+6. UI first shows `AI Slop` or `Not AI Slop`; the Details button reveals Slop Score, per-axis scores/probabilities/confidence, latency and article length. Comparison history is separately expandable.
 7. User can compare multiple articles and export the numeric results for later note/article analysis.
 
 ## 3. Evaluation must be blind
 
 Source metadata can bias the model. Keep URL, author, account name, experiment group, publication date, and user labels outside the Jev `state`.
 
-By default Jev receives only the normalized article body. Do not tell Jev whether an article is AI-heavy, human-written, famous, old, new, or expected to pass/fail. Display metadata in the UI only after evaluation.
+Jev receives exactly `{ title, body }`: the article title and normalized visible body. This input policy was explicitly updated on 2026-09-18 before the first evaluation; the eight rubrics and weights are unchanged. Do not tell Jev whether an article is AI-heavy, human-written, famous, old, new, or expected to pass/fail. Display source metadata in the UI only after evaluation. Title/body may inherently mention an author or topic; do not rewrite them to conceal that information.
 
 Do not translate the article before evaluation. Japanese and English text should be judged in the original language.
 
@@ -111,7 +111,9 @@ Frozen weights:
 
 Weights sum to 100%. Round the final display to one decimal place; retain higher precision internally.
 
-The UI must label this **Slop Score**, never “AI probability”, “AI-generated probability”, or equivalent.
+The numeric value is **Slop Score**, never “AI probability”, “AI-generated probability”, or equivalent.
+
+The user requested binary display on 2026-09-18. Code labels the unrounded composite `AI Slop` at 50 or above and `Not AI Slop` below 50 (`midpoint-v1`). This is an unvalidated display convention for writing characteristics, not a classifier of authorship. Preserve the continuous score, threshold, and policy in exports. Do not change the threshold after seeing results to improve the experiment. Near the boundary, display additional precision in the detailed rule to explain rounded scores.
 
 ## 6. Uncertainty and raw evidence
 
@@ -159,16 +161,19 @@ Provide CSV and JSON export of result metadata/scores. Do not export full copyri
 
 ## 9. UI/UX
 
-Use a restrained developer-tool / research-tool interface, not a marketing landing page. Japanese UI is the default; metric keys may show their English identifier in secondary text.
+The UI follows the user-supplied Google start-page reference: a centered **JevSlop** wordmark and a single rounded URL input with an integrated submit action. No subtitle, marketing copy, header/footer navigation, empty result panels or decorative dashboard. Japanese UI is the default.
 
-Desktop is primary but the page must remain usable on mobile. The important views are:
-- URL input + Evaluate action
-- current result with large Slop Score and clear “not an AI-authorship detector” wording
-- eight-axis detail with probability/uncertainty inspection
-- compact comparison table
-- screenshot-friendly comparison/result layout for use in the eventual note article
+After evaluation, show the article title, `AI Slop` / `Not AI Slop`, one concise authorship clarification, and a **Details** button. The numeric result, eight axes, probability distributions, confidence, metadata and raw response appear only when Details is expanded. Comparison history and exports have their own disclosure.
 
-Avoid decorative AI gradients, excessive cards, generic hero copy, fake dashboards, and other “AI Slop” UI patterns.
+PC and smartphone layouts are both required. Prevent page-wide overflow; a comparison table may scroll within its own labeled region. Preserve keyboard focus, accessible names, readable contrast and reduced-motion support. Motion should explain the transition from input to result and reveal distributions without bounces, perpetual decorative movement, or layout thrashing.
+
+Use TypeSafe's official pink `#F386A1` as the source accent, with darker rose text and pale pink controls for contrast. No gradients, glows, beige defaults, card grids, unnecessary subtitles, redundant copy or inflated claims.
+
+Design and copy references reviewed live on 2026-09-18:
+- https://impeccable.style/slop/ (layout, motion, repetitive copy, generic claims and forced contrast)
+- https://typesafe.ai/ (official palette)
+- https://learn.microsoft.com/en-us/style-guide/top-10-tips-style-voice (concise, direct UI wording)
+- https://www.nngroup.com/articles/3-cs-microcopy/ (clear, concise, considerate microcopy)
 
 ## 10. Technical direction
 
@@ -202,9 +207,20 @@ Do not build an oversized test suite. Cover the boundaries that could invalidate
 - note URL allowlist/redirect validation
 - article extraction from a representative saved HTML fixture
 - deterministic normalization/composite-score math and frozen weights
-- metadata/experiment labels are absent from the Jev state
+- only title/body are in the Jev state; source metadata and experiment labels are absent
 - API key is server-only
 
 Then run typecheck/lint/build and one end-to-end local happy path. If network access and the user's key are available, perform one real Jev smoke evaluation without storing the article body. Otherwise use a faithful mocked response and clearly report that the real API smoke test remains unexecuted.
 
 The task is complete when a user can paste a public note URL, receive a real Jev-based eight-axis evaluation and transparent Slop Score, compare multiple results, and export the numeric experiment data without manually copying article text.
+
+## Implementation choices (2026-09-18)
+
+- Official JavaScript SDK `@typesafe-ai/sdk` 0.6.0; model pinned to `jev-1.13.0`. One `systemOne` call, automatic retries disabled.
+- Live API validation found independently rounded two-decimal scores and probabilities. Validate their consistency using the mathematical rounding bounds (probability sum ±0.025, weighted expectation vs score ±0.055), retain the raw values, and never renormalize or replace the returned score. This wire-format fix leaves the rubric, weights and model unchanged.
+- Each Score is 0–4; normalized score = `score * 25`. Preserve the full SDK answer and request/model/token metadata. Rubric identifier: `frozen-v1-title-body`.
+- DOM parsing uses Cheerio with the current note-specific `.note-common-styles__textnote-body` container. The public page was inspected directly. Unknown layouts fail closed instead of using a broad whole-page fallback.
+- HTML is limited to 3 MiB, note fetch to 20 seconds, Jev to 60 seconds; article body must contain at least 100 Unicode characters. Redirects are validated before each hop.
+- Official model limits: 64k tokens for the whole request, 32k for state plus the longest question. No assumed character-to-token conversion or silent truncation. The service can reject an oversized article; no partial score is produced. Chunking is not implemented.
+- Comparison history lives only in the current browser tab, without localStorage or a database. JSON/CSV exports are explicit user downloads and exclude article bodies.
+- The server binds to loopback, rejects cross-origin evaluation requests, and reads only `TYPESAFE_API_KEY` server-side. SDK request logging is disabled.
