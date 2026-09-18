@@ -191,16 +191,13 @@ tbody .title-col { background: white; font-weight: 400; }
 .dialog-close { width: 34px; height: 34px; border-radius: 50%; color: var(--muted); font-size: 23px; line-height: 1; }
 .dialog-close:hover { background: #f7f5f6; color: var(--ink); }
 .settings-field { display: grid; gap: 7px; margin-top: 18px; }
-.settings-field label, .remember-row b { font-size: 12px; font-weight: 600; }
+.settings-field label { font-size: 12px; font-weight: 600; }
 .settings-field input, .settings-field select { width: 100%; min-height: 42px; border: 1px solid #d7d5db; border-radius: 5px; padding: 9px 11px; color: var(--ink); background: white; }
 .settings-field input:focus, .settings-field select:focus { border-color: var(--pink); outline: 2px solid #f386a122; outline-offset: 1px; }
 .key-status { margin: 9px 0 0; font-size: 12px; }
 .key-status.configured { color: #357053; }
 .key-status.missing { color: var(--rose); }
-.remember-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; cursor: pointer; }
-.remember-row input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--rose); }
-.remember-row span { display: grid; gap: 3px; }
-.remember-row small, .settings-explanation, .settings-notice { color: var(--muted); font-size: 12px; line-height: 1.75; }
+.settings-explanation, .settings-notice { color: var(--muted); font-size: 12px; line-height: 1.75; }
 .settings-explanation { border-top: 1px solid var(--line); margin-top: 21px; padding-top: 15px; }
 .settings-explanation p + p { margin-top: 9px; }
 .settings-notice { color: #357053; margin-top: 14px; }

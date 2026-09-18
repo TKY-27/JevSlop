@@ -17,7 +17,7 @@ The `AI Slop` / `Not AI Slop` label is a provisional midpoint display convention
 
 ## Bring Your Own Key
 
-Open **Settings** from the fixed gear button in the top-right corner and enter your own TypeSafe API key. The password field does not reveal a saved key. By default the key is held in memory and `sessionStorage`; it is cleared when the tab closes. **Remember on this device** is an explicit opt-in that additionally uses `localStorage`.
+Open **Settings** from the fixed gear button in the top-right corner and enter your own TypeSafe API key. The password field does not reveal a saved key. The key is held only in memory and `sessionStorage`; it is not stored in `localStorage` and is cleared when the tab closes.
 
 No operator key is required. Do not put `TYPESAFE_API_KEY` in Cloudflare Pages variables for this application.
 
@@ -29,7 +29,7 @@ Pages Function -- fetch public note HTML --> note.com
 Pages Function -- title/body + user's key --> TypeSafe API
 ```
 
-The browser sends the key only to the same-origin `/api/evaluate` Function during analysis. The Function validates the note host and redirects, extracts only the title/body needed for evaluation, and forwards the key to the fixed TypeSafe endpoint. It is stateless: it does not write the key, article, result, or request body to storage, logs, analytics, URLs, or exports. The SDK runs with logging off and retries disabled. The Function does not emit application logs; Cloudflare's platform-level metadata remains subject to Cloudflare's policies.
+During analysis, the browser sends the key through the same-origin `/api/evaluate` Cloudflare Pages Function, which validates the note host and redirects, extracts only the title/body needed for evaluation, and forwards the key to the fixed TypeSafe endpoint. JevSlop application code does not store or log the key; the Function does not persist it or include it in responses or exports. Cloudflare infrastructure processing and observability metadata follow Cloudflare's policies, and TypeSafe API processing follows TypeSafe's policies. The SDK runs with logging off and retries disabled.
 
 TypeSafe receives exactly `{ title, body }`. URL, author, date, comparison labels, and experiment groups are excluded from Jev state. The article body is not kept in browser history or result exports; result history exists in the current tab's memory only.
 
@@ -65,6 +65,8 @@ Connect [TKY-27/JevSlop](https://github.com/TKY-27/JevSlop) to Cloudflare Pages 
 | Environment variables | None required |
 
 The static UI is a Next.js export. The repository's `functions/` directory supplies the `/api/evaluate` Pages Function automatically; do not remove it and do not add a shared TypeSafe secret. The dashboard Git integration performs the production deploy; no manual Cloudflare deploy command is required.
+
+For public operation, configure Cloudflare rate limiting for `/api/evaluate` as appropriate. The Function's Origin and `Sec-Fetch-Site` checks are not rate limiting or authentication.
 
 ## Limitations
 

@@ -16,8 +16,6 @@ export type Copy = {
   apiKeyPlaceholder: string;
   apiKeyConfigured: string;
   apiKeyMissing: string;
-  rememberKey: string;
-  rememberDescription: string;
   language: string;
   save: string;
   deleteKey: string;
@@ -108,8 +106,6 @@ const japanese: Copy = {
   apiKeyPlaceholder: '入力すると現在のキーを置き換えます',
   apiKeyConfigured: 'このタブでAPIキーを設定済みです。キーそのものは表示しません。',
   apiKeyMissing: 'APIキーはまだ設定されていません。',
-  rememberKey: 'このデバイスに保存する',
-  rememberDescription: 'オフ（既定）ではsessionStorageだけに保存し、タブを閉じると消去します。オンにするとlocalStorageに保存され、このデバイスに残ります。',
   language: '言語',
   save: '保存',
   deleteKey: 'APIキーを削除',
@@ -117,7 +113,7 @@ const japanese: Copy = {
   settingsSaved: '設定を保存しました。',
   settingsDeleted: 'APIキーを削除しました。',
   settingsPrivacy: 'キーは画面上に再表示せず、URL・履歴・CSV/JSON出力・分析結果には含めません。',
-  settingsTransport: '分析時だけ同一オリジンのJevSlop Pages Functionへ送信し、FunctionからTypeSafeへ転送します。保存・ログ・分析サービスへの送信は行いません。',
+  settingsTransport: '分析中だけブラウザから同一オリジンのCloudflare Pages Functionを経由してTypeSafe APIへ送信します。JevSlopのアプリケーションコードはキーを保存・ログ・結果や出力へ含めません。Cloudflare基盤の処理・observability metadataはCloudflareのポリシー、TypeSafe側のAPI処理はTypeSafeのポリシーに従います。',
   urlLabel: '公開note記事のURL',
   urlPlaceholder: 'noteの記事URLを入力',
   submit: '分析する',
@@ -232,8 +228,6 @@ const english: Copy = {
   apiKeyPlaceholder: 'Enter a new key to replace the current one',
   apiKeyConfigured: 'An API key is set for this tab. The key itself is never shown again.',
   apiKeyMissing: 'No API key is configured.',
-  rememberKey: 'Remember on this device',
-  rememberDescription: 'Off by default: the key stays in sessionStorage and is cleared when this tab closes. When enabled, it is stored in localStorage and remains on this device.',
   language: 'Language',
   save: 'Save',
   deleteKey: 'Delete API key',
@@ -241,7 +235,7 @@ const english: Copy = {
   settingsSaved: 'Settings saved.',
   settingsDeleted: 'API key deleted.',
   settingsPrivacy: 'The key is never shown again and is excluded from URLs, history, CSV/JSON exports, and analysis results.',
-  settingsTransport: 'During analysis it is sent only to the same-origin JevSlop Pages Function, which forwards it to TypeSafe. It is not stored, logged, or sent to analytics.',
+  settingsTransport: 'During analysis the key travels from the browser through the same-origin Cloudflare Pages Function to the TypeSafe API. JevSlop application code does not store or log it, and the Function does not include it in responses or exports. Cloudflare infrastructure processing and observability metadata follow Cloudflare policies; TypeSafe API processing follows TypeSafe policies.',
   urlLabel: 'Public note article URL',
   urlPlaceholder: 'Paste a note article URL',
   submit: 'Analyze',

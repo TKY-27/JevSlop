@@ -7,7 +7,6 @@ import { browserLanguage, translations, type Language } from '@/lib/i18n';
 
 type Phase = 'idle' | 'fetching' | 'evaluating';
 const API_KEY_STORAGE = 'jevslop:typesafe-api-key';
-const REMEMBER_STORAGE = 'jevslop:remember-api-key';
 const LANGUAGE_STORAGE = 'jevslop:language';
 const fixed = (n: number) => n.toFixed(1);
 const percent = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -38,7 +37,6 @@ export default function Workspace() {
   const copy = translations[language];
   const [apiKey, setApiKey] = useState('');
   const [draftKey, setDraftKey] = useState('');
-  const [rememberKey, setRememberKey] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState<'' | 'saved' | 'deleted'>('');
   const [url, setUrl] = useState('');
@@ -69,10 +67,8 @@ export default function Workspace() {
     const frame = requestAnimationFrame(() => {
       try {
         const sessionKey = sessionStorage.getItem(API_KEY_STORAGE);
-        const remembered = localStorage.getItem(REMEMBER_STORAGE) === '1';
-        const savedKey = remembered ? localStorage.getItem(API_KEY_STORAGE) : null;
-        setApiKey(sessionKey || savedKey || '');
-        setRememberKey(Boolean(remembered && savedKey));
+        setApiKey(sessionKey || '');
+        localStorage.removeItem(API_KEY_STORAGE);
         const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE);
         if (savedLanguage === 'ja' || savedLanguage === 'en') setLanguage(savedLanguage);
         else setLanguage(browserLanguage());
@@ -121,13 +117,7 @@ export default function Workspace() {
     try {
       if (nextKey) sessionStorage.setItem(API_KEY_STORAGE, nextKey);
       else sessionStorage.removeItem(API_KEY_STORAGE);
-      if (rememberKey && nextKey) {
-        localStorage.setItem(REMEMBER_STORAGE, '1');
-        localStorage.setItem(API_KEY_STORAGE, nextKey);
-      } else {
-        localStorage.removeItem(REMEMBER_STORAGE);
-        localStorage.removeItem(API_KEY_STORAGE);
-      }
+      localStorage.removeItem(API_KEY_STORAGE);
     } catch { /* keep the key in memory when storage is unavailable */ }
     setDraftKey('');
     setSettingsNotice('saved');
@@ -136,11 +126,9 @@ export default function Workspace() {
   function deleteKey() {
     setApiKey('');
     setDraftKey('');
-    setRememberKey(false);
     try {
       sessionStorage.removeItem(API_KEY_STORAGE);
       localStorage.removeItem(API_KEY_STORAGE);
-      localStorage.removeItem(REMEMBER_STORAGE);
     } catch { /* memory is already cleared */ }
     setSettingsNotice('deleted');
   }
@@ -278,7 +266,6 @@ export default function Workspace() {
         <div className="settings-heading"><h2 id="settings-title">{copy.settingsTitle}</h2><button type="button" className="dialog-close" aria-label={copy.close} onClick={() => setSettingsOpen(false)}>×</button></div>
         <div className="settings-field"><label htmlFor="typesafe-key">{copy.apiKeyLabel}</label><input ref={keyInputRef} id="typesafe-key" type="password" autoComplete="off" spellCheck={false} placeholder={copy.apiKeyPlaceholder} value={draftKey} onChange={event => setDraftKey(event.target.value)} /></div>
         <p className={`key-status ${apiKey ? 'configured' : 'missing'}`}>{apiKey ? copy.apiKeyConfigured : copy.apiKeyMissing}</p>
-        <label className="remember-row"><input type="checkbox" checked={rememberKey} onChange={event => setRememberKey(event.target.checked)} /><span><b>{copy.rememberKey}</b><small>{copy.rememberDescription}</small></span></label>
         <div className="settings-field"><label htmlFor="language">{copy.language}</label><select id="language" value={language} onChange={event => setLanguage(event.target.value as Language)}><option value="ja">日本語</option><option value="en">English</option></select></div>
         <div className="settings-explanation"><p>{copy.settingsPrivacy}</p><p>{copy.settingsTransport}</p></div>
         {settingsNotice && <p className="settings-notice" role="status">{settingsNotice === 'saved' ? copy.settingsSaved : copy.settingsDeleted}</p>}

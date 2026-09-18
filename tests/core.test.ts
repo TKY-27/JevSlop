@@ -103,11 +103,28 @@ test('numeric CSV includes probabilities/confidence, protects spreadsheet formul
   assert.ok(!csv.includes('土曜日の朝')); assert.equal(csv.split('\r\n').length, 2);
 });
 
-test('BYOK key stays out of results and the Function has no shared secret or logging path', () => {
+test('BYOK key stays session-only, out of results/exports/errors, and the Function has no shared secret or logging path', () => {
   const clientSource = readFileSync(new URL('../app/workspace.tsx', import.meta.url), 'utf8');
   assert.ok(!clientSource.includes('process.env')); assert.ok(clientSource.includes('sessionStorage')); assert.ok(clientSource.includes('Authorization'));
+  assert.ok(clientSource.includes('sessionStorage.removeItem(API_KEY_STORAGE)'));
+  assert.ok(clientSource.includes("setApiKey('')"));
+  assert.ok(!clientSource.includes('localStorage.setItem(API_KEY_STORAGE'));
+  assert.ok(!clientSource.includes('localStorage.getItem(API_KEY_STORAGE'));
+  assert.ok(!clientSource.includes('rememberKey'));
   const functionSource = readFileSync(new URL('../functions/api/evaluate.ts', import.meta.url), 'utf8');
   assert.ok(functionSource.includes("logLevel: 'off'")); assert.ok(functionSource.includes("baseURL: 'https://api.typesafe.ai'"));
   assert.ok(functionSource.includes("authorization")); assert.ok(!functionSource.includes('process.env')); assert.ok(!functionSource.includes('console.'));
   assert.ok(!functionSource.includes('...article,'));
+  const secret = 'ts-secret-test-value';
+  const resultJson = JSON.stringify({ results: [{ title: 'safe', url, label: '', error: 'JEV_AUTH' }] });
+  assert.ok(!resultJson.includes(secret));
+  assert.ok(!resultsCsv([]).includes(secret));
+  assert.ok(!JSON.stringify({ code: 'JEV_AUTH' }).includes(secret));
+});
+
+test('production security headers define the required CSP boundary', () => {
+  const headers = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
+  for (const directive of ["default-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "form-action 'self'", "script-src 'self'", "script-src-attr 'none'", "style-src 'self'", "style-src-attr 'unsafe-inline'"]) assert.ok(headers.includes(directive));
+  assert.ok(!headers.includes('unsafe-eval'));
+  assert.ok(!headers.includes('https://'));
 });

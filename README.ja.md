@@ -16,7 +16,7 @@
 
 ## 自分のAPIキーを使う
 
-画面右上の設定アイコンから、TypeSafe APIキーを入力します。入力欄はpassword形式で、保存済みのキーを再表示しません。既定ではメモリと `sessionStorage` に保持し、タブを閉じると消えます。**このデバイスに保存する**を明示的にオンにした場合だけ `localStorage` にも保存します。
+画面右上の設定アイコンから、TypeSafe APIキーを入力します。入力欄はpassword形式で、保存済みのキーを再表示しません。キーはメモリと `sessionStorage` だけに保持し、`localStorage` には保存しません。タブを閉じると消えます。
 
 運営者共通キーは使いません。Cloudflare Pagesの環境変数に `TYPESAFE_API_KEY` を設定する必要もありません。
 
@@ -28,7 +28,7 @@ Pages Function -- 公開note HTMLを取得 --> note.com
 Pages Function -- ユーザーのキー + タイトル/本文 --> TypeSafe API
 ```
 
-分析時だけキーを同一オリジンのFunctionへ送り、Functionは固定送信先のTypeSafeへ転送します。キー、本文、結果、リクエスト本文を保存・ログ・分析サービス・URL・エクスポートへ出しません。SDKのログと自動リトライも無効です。Functionはアプリケーションログを出力しませんが、Cloudflareのプラットフォーム標準メタデータはCloudflareのポリシーに従います。
+分析中、ブラウザからキーを同一オリジンのCloudflare Pages Functionへ送り、Functionが固定送信先のTypeSafe APIへ転送します。JevSlopのアプリケーションコードはキーを保存・ログせず、Functionもレスポンスやエクスポートへキーを含めません。Cloudflare基盤の処理・observability metadataはCloudflareのポリシー、TypeSafe側のAPI処理はTypeSafeのポリシーに従います。SDKのログと自動リトライも無効です。
 
 Jevへ渡すstateは `{ title, body }` だけです。URL、著者、日時、比較ラベル、実験グループは含めません。履歴は現在のタブのメモリだけに保持します。
 
@@ -64,6 +64,8 @@ npm run build
 | Environment variables | 不要 |
 
 Next.jsは静的exportで、`functions/` の `/api/evaluate` Pages FunctionがAPIを担当します。Functionディレクトリを削除せず、共通のTypeSafeキーを追加しないでください。DashboardでGitHub連携してDeployすれば公開できます。
+
+公開運用では、必要に応じてCloudflare側で `/api/evaluate` にrate limitingを設定してください。FunctionのOrigin / `Sec-Fetch-Site` 判定はリクエスト元保護であり、rate limitや認証ではありません。
 
 ## 制約
 

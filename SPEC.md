@@ -179,7 +179,7 @@ Design and copy references reviewed live on 2026-09-18:
 
 Use a simple TypeScript implementation with one local dev command: a Next.js static export plus a Cloudflare Pages Function. Use Node.js 22.12+ for local development and the official `@typesafe-ai/sdk` package inside the Function.
 
-The user supplies the TypeSafe API key in the browser. Keep it in memory and `sessionStorage` by default; use `localStorage` only after explicit opt-in. Send it only in an `Authorization` header to the same-origin Function, never in a URL, response, result, export, log, analytics event, or source. Never provide a shared operator key through Cloudflare variables.
+The user supplies the TypeSafe API key in the browser. Keep it only in memory and `sessionStorage`; never persist it in `localStorage`. Send it only in an `Authorization` header to the same-origin Function, never in a URL, response, result, export, application log, analytics event, or source. Cloudflare infrastructure processing and observability metadata follow Cloudflare's policies, and TypeSafe API processing follows TypeSafe's policies. Never provide a shared operator key through Cloudflare variables.
 
 Before coding the Jev integration, inspect the current official TypeSafe docs/SDK and, if useful, install the official TypeSafe Agent Skill project-locally for Codex. Do not copy outdated examples blindly.
 
