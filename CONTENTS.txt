@@ -1,0 +1,8 @@
+JevSlop starter contents
+- AGENTS.md       concise agent rules
+- SPEC.md         implementation/product contract
+- EXPERIMENT.md   frozen comparison protocol
+- CODEX_START.md  first prompt for Codex.app
+- README.md       local setup/use
+- .env.example    TypeSafe key placeholder
+- .gitignore      local/build/secret exclusions
